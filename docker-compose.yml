@@ -1,0 +1,54 @@
+version: '3.9'
+
+services:
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: certificates_project.settings
+      DATABASE_URL: postgres://certificate_user:certificate_pass@db:5432/certificate_db
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      USE_POSTGRES: "true"
+    depends_on:
+      - db
+      - redis
+      - celery-worker
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: certificate_db
+      POSTGRES_USER: certificate_user
+      POSTGRES_PASSWORD: certificate_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  celery-worker:
+    build: .
+    command: celery -A certificates_project worker -l info
+    volumes:
+      - .:/app
+    environment:
+      DJANGO_SETTINGS_MODULE: certificates_project.settings
+      DATABASE_URL: postgres://certificate_user:certificate_pass@db:5432/certificate_db
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      USE_POSTGRES: "true"
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  postgres_data:
